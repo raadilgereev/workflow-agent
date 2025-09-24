@@ -21,35 +21,6 @@ import logging
 
 logger = logging.getLogger("workflow_agent")
 
-_srv_instance = None
-
-def get_srv():
-    """Return a live PetexServer instance, reconnecting if necessary."""
-    global _srv_instance
-
-    try:
-        if _srv_instance is None:
-            logger.info("Creating new PetexServer COM session...")
-            _srv_instance = PetexServer()
-            _srv_instance.__enter__()
-        else:
-            # cheap probe
-            if not hasattr(_srv_instance, "_server") or _srv_instance._server is None:
-                raise Exception("COM not initialized")
-            _ = _srv_instance._server.GetTypeInfoCount()
-    except Exception as e:
-        logger.error(f"PetexServer connection lost, reconnecting: {e}")
-        try:
-            if _srv_instance:
-                _srv_instance.close()
-        except Exception:
-            pass
-        _srv_instance = PetexServer()
-        _srv_instance.__enter__()
-
-    return _srv_instance
-
-
 # 🔹 Persistent global context (Jupyter-like kernel)
 GLOBAL_CONTEXT = {
     "gap": gap,
@@ -73,11 +44,14 @@ async def run_cell(request: Request):
     stdout_buf, stderr_buf = io.StringIO(), io.StringIO()
 
     try:
-        GLOBAL_CONTEXT["srv"] = get_srv()
-        with redirect_stdout(stdout_buf), redirect_stderr(stderr_buf):
-            exec(code, GLOBAL_CONTEXT)
+        with PetexServer() as srv:
+            GLOBAL_CONTEXT["srv"] = srv
+            with redirect_stdout(stdout_buf), redirect_stderr(stderr_buf):
+                exec(code, GLOBAL_CONTEXT)
     except Exception as e:
         stderr_buf.write(f"{type(e).__name__}: {e}\n")
+    finally:
+        GLOBAL_CONTEXT.pop("srv", None)
 
     vars_snapshot = {
         k: {"type": type(v).__name__, "preview": str(v)[:50]}
@@ -93,7 +67,6 @@ async def run_cell(request: Request):
         "stderr": stderr_buf.getvalue(),
         "variables": vars_snapshot,
     })
-
 
 @app.post("/run_all/")
 async def run_all(request: Request):
@@ -103,12 +76,15 @@ async def run_all(request: Request):
     stdout_buf, stderr_buf = io.StringIO(), io.StringIO()
 
     try:
-        GLOBAL_CONTEXT["srv"] = get_srv()
-        with redirect_stdout(stdout_buf), redirect_stderr(stderr_buf):
-            for code in cells:
-                exec(code, GLOBAL_CONTEXT)
+        with PetexServer() as srv:
+            GLOBAL_CONTEXT["srv"] = srv
+            with redirect_stdout(stdout_buf), redirect_stderr(stderr_buf):
+                for code in cells:
+                    exec(code, GLOBAL_CONTEXT)
     except Exception as e:
         stderr_buf.write(f"{type(e).__name__}: {e}\n")
+    finally:
+        GLOBAL_CONTEXT.pop("srv", None)
 
     vars_snapshot = {
         k: {"type": type(v).__name__, "preview": str(v)[:50]}
@@ -124,7 +100,6 @@ async def run_all(request: Request):
         "stderr": stderr_buf.getvalue(),
         "variables": vars_snapshot,
     })
-
 
 @app.get("/variables/")
 async def list_variables():
@@ -159,7 +134,6 @@ async def reset_context():
         "gap": gap,
         "resolve": resolve,
         "PetexServer": PetexServer,
-        "srv": get_srv(),
     })
     return JSONResponse({"status": "reset"})
 
