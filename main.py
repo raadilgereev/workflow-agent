@@ -101,6 +101,7 @@ async def run_all(request: Request):
         "variables": vars_snapshot,
     })
 
+#get variables
 @app.get("/variables/")
 async def list_variables():
     reserved = {"gap", "resolve", "PetexServer", "srv"}
