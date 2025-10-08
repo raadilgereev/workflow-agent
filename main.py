@@ -25,7 +25,7 @@ logger = logging.getLogger("workflow_agent")
 # 🔹 Persistent global context (Jupyter-like kernel)
 GLOBAL_CONTEXT = {
     "gap": gap,
-    "gap_tool": gap_tools,
+    "gap_tools": gap_tools,
     "resolve": resolve,
     "PetexServer": PetexServer,
     # srv will be injected per execution
@@ -135,7 +135,7 @@ async def reset_context():
     GLOBAL_CONTEXT.clear()
     GLOBAL_CONTEXT.update({
         "gap": gap,
-        "gap_tool": gap_tools,
+        "gap_tools": gap_tools,
         "resolve": resolve,
         "PetexServer": PetexServer,
     })
