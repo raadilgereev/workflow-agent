@@ -11,6 +11,7 @@ import petex_client.resolve as resolve
 from petex_client.server import PetexServer
 
 app = FastAPI(title="Workflow Agent", version="1.0")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # or ["http://localhost:3000"] if you want to be strict
@@ -18,9 +19,6 @@ app.add_middleware(
     allow_methods=["*"],   # include OPTIONS, POST, GET etc
     allow_headers=["*"],
 )
-import logging
-
-logger = logging.getLogger("workflow_agent")
 
 # 🔹 Persistent global context (Jupyter-like kernel)
 GLOBAL_CONTEXT = {
