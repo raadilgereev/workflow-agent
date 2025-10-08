@@ -1,5 +1,36 @@
 from typing import Iterable, List, Sequence, Tuple
 import numpy as np
+from petex_client.server import PetexServer
+
+
+# 🔹 Global singleton for COM session
+_srv_instance = None
+
+
+def get_srv():
+    """Return a live PetexServer instance, reconnecting if necessary."""
+    global _srv_instance
+
+    if _srv_instance is None:
+        _srv_instance = PetexServer()
+        _srv_instance.__enter__()   # open COM session
+    else:
+        try:
+            # 🔹 Probe COM connection (cheap call)
+            if not hasattr(_srv_instance, "_server") or _srv_instance._server is None:
+                raise Exception("COM not initialized")
+            _ = _srv_instance._server.GetTypeInfoCount()  # minimal COM check
+        except Exception:
+            # 🔹 Reconnect if dead
+            try:
+                _srv_instance.close()
+            except Exception:
+                pass
+            _srv_instance = PetexServer()
+            _srv_instance.__enter__()
+
+    return _srv_instance
+
 
 def list2gapstr(items: Iterable) -> str:
     """Convert Python iterable into GAP pipe-delimited string with trailing bar."""
